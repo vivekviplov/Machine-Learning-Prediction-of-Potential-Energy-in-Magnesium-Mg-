@@ -1,0 +1,57 @@
+units metal
+
+boundary p p p
+dimension 3
+atom_style atomic
+
+log logfile.txt
+variable stp equal 100
+print "the number of steps ${stp}"
+
+region forbox  block 0 45.8 0 45.8 0 45.8  units box
+create_box 1 forbox
+lattice custom 4.58 a1 1 0 0 a2 0 1 0 a3 0 0 1 &
+basis 0.0 0.0 0.0 &
+basis 0.5 0.5 0.0 &
+basis 0.0 0.5 0.5 &
+basis 0.5 0.0 0.5
+create_atoms 1 region forbox basis 1 1 basis 2 1 basis 3 1 basis 4 1 units box
+group mg type 1
+mass 1 24.305
+
+pair_style lj/cut 10
+pair_coeff 1 1  0.01006418 3.952
+timestep 0.001
+dump dump_1 all custom 1 dump.min id type x y z ix iy iz vx vy vz
+run 1
+undump dump_1
+##########################
+minimize 1e-7 1e-05 10000 10000
+print "Finishing minimize"
+thermo_style custom step time temp pe etotal press vol
+thermo 1
+# mom yes -restrict the regid body transmision motion # rot yes restrict to regid body rotation
+# create 300 temp on the atom dist in gussian form using 102339
+velocity all create 300  102939 dist gaussian mom yes rot yes
+
+
+fix 1 all nve
+
+thermo 1000
+variable t equal time
+variable T equal temp
+variable p equal press
+variable PE equal pe
+variable KE equal ke
+variable E equal etotal
+fix output all print 1000 "${t},${T},${p},${KE},${PE},${E}" file output.csv screen no title "Time,Temp,Pressure,KE,PE,Etot"
+run 10000
+
+unfix 1
+fix 2 all npt temp 150 357 500 iso 590400 1.0 500
+run 500000    #300 ps
+unfix 2
+
+fix 2 all nve
+run 20000
+unfix 2
